@@ -23,3 +23,11 @@ path = "src/server.rs"
 [[bin]]
 name = "ghost_shell_client"
 path = "src/client.rs"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = 3
+debug = false
+panic = "abort"
