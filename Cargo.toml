@@ -2,13 +2,19 @@
 name = "ghost_shell"
 version = "0.1.0"
 edition = "2021"
+authors = ["unclesp1d3r <unclesp1d3r@protonmail.com>"]
+description = "A simple shell over a secure channel"
+license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-gcm = { version = "0.10.1", features = ["std", "stream", "zeroize"] }
+chacha20poly1305 = { version = "0.10.1", features = ["stream", "std"] }
+clap = { version = "4.1.4", features = ["wrap_help", "cargo", "env", "derive"] }
+generic-array = "0.14.6"
+hkdf = { version = "0.12.3", features = ["std"] }
 rand = "0.8.5"
 sha2 = "0.10.6"
+
 
 [[bin]]
 name = "ghost_shell_server"
