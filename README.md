@@ -6,7 +6,11 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/unclesp1d3r/ghost_shell)
 ![Maintenance](https://img.shields.io/maintenance/yes/2022)
 
-This project implements a simple reverse shell that communicates over a TCP connection and encrypts all data using AES encryption. The encryption key is derived from a password passed on the command line.
+This project implements a secure shell client and server using the ChaCha20Poly1305 encryption algorithm. The encryption key is derived from a password passed on the command line.
+
+## Requirements
+
+Rust (1.48 or later)
 
 ## Building and Running
 
@@ -28,13 +32,11 @@ To run the client, use the following command and pass in the password as the fir
 ./target/release/client <password>
 ```
 
-## Implementation Details
-
-The encryption key is derived using SHA-256, and the nonce is derived using a truncated SHA-256 hash of the password. The encryption and decryption of data is done using the AES-GCM algorithm. The client and server communicate by sending encrypted commands and outputs back and forth. The nonce is incremented after each message to ensure that the same nonce is not used twice.
+Once connected to the server, the client can send shell commands to the server, and the server will execute the command and return the output to the client. The client can also exit the connection by sending the exit command.
 
 ## Security
 
-This project is for educational purposes only and is not suitable for use in a production environment. The security of the encryption and key derivation is dependent on the strength of the password, so it is important to choose a strong and unique password. Additionally, the code has not been thoroughly reviewed for security vulnerabilities, so there may be unknown issues present.
+To ensure secure communication between the client and server, all data sent between them is encrypted using the ChaCha20Poly1305 encryption algorithm. The encryption key is derived from a password shared between the client and server, and a unique nonce is generated for each communication session to prevent replay attacks.
 
 ## License
 
