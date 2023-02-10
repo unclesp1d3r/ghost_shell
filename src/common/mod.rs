@@ -39,12 +39,3 @@ pub fn derive_nonce(password: &str) -> [u8; 12] {
     nonce.copy_from_slice(&result[..12]);
     nonce
 }
-
-pub fn increment_nonce(nonce: &mut [u8; 12]) {
-    for i in (0..12).rev() {
-        nonce[i] = nonce[i].wrapping_add(1);
-        if nonce[i] != 0 {
-            break;
-        }
-    }
-}
