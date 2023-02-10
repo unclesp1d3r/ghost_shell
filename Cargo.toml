@@ -7,10 +7,8 @@ edition = "2021"
 
 [dependencies]
 aes-gcm = { version = "0.10.1", features = ["std", "stream", "zeroize"] }
-log = "0.4.17"
 rand = "0.8.5"
 sha2 = "0.10.6"
-stderrlog = "0.5.4"
 
 [[bin]]
 name = "ghost_shell_server"

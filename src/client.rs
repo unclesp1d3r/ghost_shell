@@ -13,9 +13,16 @@ fn main() {
     let mut stream = TcpStream::connect("127.0.0.1:8080").expect("Failed to connect to the server");
 
     loop {
+        print!("$ ");
+        std::io::stdout().flush().unwrap();
+
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim_end().as_bytes();
+
+        if input == b"exit" {
+            break;
+        }
 
         let encrypted_input = common::encrypt_data(input, &key, &nonce);
 
