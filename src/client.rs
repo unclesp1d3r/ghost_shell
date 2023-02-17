@@ -1,5 +1,4 @@
 use clap::Parser;
-use rand::thread_rng;
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
 
@@ -27,7 +26,7 @@ struct Opts {
 
 fn handle_server(mut stream: std::net::TcpStream, password: &str) {
     let key = common::derive_key(password);
-    let nonce = derive_nonce();
+    let nonce = common::derive_nonce();
     stream.write_all(&nonce).unwrap();
     stream.flush().unwrap();
 
@@ -35,20 +34,49 @@ fn handle_server(mut stream: std::net::TcpStream, password: &str) {
         print!("\n> ");
         io::stdout().flush().unwrap();
 
-        let mut buffer = String::new();
-        io::stdin().read_line(&mut buffer).unwrap();
-        if buffer.trim_end() == "exit" {
-            break;
-        }
+        let mut line = String::new();
+        io::stdin()
+            .read_line(&mut line)
+            .expect("Failed to read line");
 
-        let buffer = buffer.trim_end().as_bytes().to_vec();
-        let buffer = common::encrypt_data(&buffer, &key, &nonce).unwrap();
+        let command = match line.trim() {
+            "ls" => common::Command::Ls,
+            "pwd" => common::Command::Pwd,
+            "quit" => {
+                break;
+            }
+            _ => {
+                let mut parts = line.splitn(2, ' ');
+                let command = parts.next().unwrap();
+                let arg = parts.next().unwrap_or("");
+                match command {
+                    "cd" => common::Command::Cd {
+                        path: arg.to_owned(),
+                    },
+                    "echo" => common::Command::Echo {
+                        message: arg.to_owned(),
+                    },
+                    "exec" => common::Command::Exec {
+                        command: arg.to_owned(),
+                    },
+                    _ => {
+                        eprintln!("Invalid command: {}", command);
+                        continue;
+                    }
+                }
+            }
+        };
+
+        let plaintext = bincode::serialize(&command).expect("error encoding command");
+
+        let buffer = common::encrypt_data(&plaintext, &key, &nonce).expect("Failed to encrypt");
         stream.write_all(&buffer).unwrap();
         stream.flush().unwrap();
 
         let mut response = [0u8; 65536];
         let n = stream.read(&mut response).unwrap();
-        let decrypted = common::decrypt_data(&response[..n], &key, &nonce).unwrap();
+        let decrypted =
+            common::decrypt_data(&response[..n], &key, &nonce).expect("Failed to decrypt");
         println!("{}", String::from_utf8(decrypted).unwrap());
     }
 }
@@ -57,10 +85,4 @@ fn main() {
     let opts: Opts = Opts::parse();
     let stream = TcpStream::connect(opts.address).unwrap();
     handle_server(stream, &opts.password);
-}
-
-fn derive_nonce() -> chacha20poly1305::Nonce {
-    let mut nonce_bytes = [0u8; common::NONCE_LEN];
-    rand::RngCore::fill_bytes(&mut thread_rng(), &mut nonce_bytes);
-    *chacha20poly1305::Nonce::from_slice(&nonce_bytes)
 }
