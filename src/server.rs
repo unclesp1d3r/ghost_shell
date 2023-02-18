@@ -1,103 +1,158 @@
-use chacha20poly1305::Nonce;
-use std::net::TcpListener;
-use std::process::Stdio;
-use std::{
-    io::{Read, Write},
-    process::exit,
-};
+use anyhow::Result;
+use bytes::Bytes;
+use snowstorm::NoiseStream;
+use snowstorm::{self};
+use std::{error::Error, process::Stdio};
+use tokio::net::{TcpListener, TcpStream};
+mod shared;
+use futures::{sink::SinkExt, StreamExt};
+use std::process::Command;
+use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-mod common;
+async fn do_echo(s: String, framed: &mut Framed<NoiseStream<TcpStream>, LengthDelimitedCodec>) {
+    framed
+        .send(Bytes::from(
+            bincode::serialize(
+                &(shared::Frame {
+                    kind: shared::MessageKind::Data,
+                    body: bincode::serialize(&(format!("echo: {}", s))).unwrap(),
+                }),
+            )
+            .unwrap(),
+        ))
+        .await
+        .expect("failed to send response");
+}
 
-const PASSWORD: &str = "password";
-const SERVER_ADDR: &str = "0.0.0.0:8888";
+fn do_ack() {
+    println!("Received ack");
+}
 
-fn handle_client(mut stream: std::net::TcpStream) {
-    let mut buffer = [0u8; 65536];
-    let mut nonce = [0u8; common::NONCE_LEN];
-    let key = common::derive_key(PASSWORD);
-    let mut response_buffer = Vec::new();
+async fn do_shell(
+    cmd: shared::ShellCommand,
+    framed: &mut Framed<NoiseStream<TcpStream>, LengthDelimitedCodec>,
+) {
+    println!("Received shell command: {:?}", cmd);
+    let output = Command::new(cmd.command)
+        .args(cmd.args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("failed to execute process");
 
-    stream.read_exact(&mut nonce).unwrap();
-    let nonce = Nonce::from_slice(&nonce);
+    framed
+        .send(Bytes::from(
+            bincode::serialize(
+                &(shared::Frame {
+                    kind: shared::MessageKind::Data,
+                    body: bincode::serialize(&output.stdout).unwrap(),
+                }),
+            )
+            .unwrap(),
+        ))
+        .await
+        .expect("failed to send response");
+}
 
-    loop {
-        let bytes_read = stream.read(&mut buffer).expect("Failed to read");
-        if bytes_read == 0 {
-            break;
+async fn do_shutdown(framed: &mut Framed<NoiseStream<TcpStream>, LengthDelimitedCodec>) {
+    println!("Received shutdown command");
+    framed
+        .send(Bytes::from(
+            bincode::serialize(
+                &(shared::Frame {
+                    kind: shared::MessageKind::Data,
+                    body: bincode::serialize(&"Server shutting down...").unwrap(),
+                }),
+            )
+            .unwrap(),
+        ))
+        .await
+        .expect("failed to send response");
+    std::process::exit(0);
+}
+
+async fn handle_connection(stream: TcpStream, responder: snow::HandshakeState) {
+    match NoiseStream::handshake(stream, responder).await {
+        Ok(stream) => {
+            println!("handshake complete");
+            let mut framed = Framed::new(stream, LengthDelimitedCodec::new());
+            while let Some(bytes) = framed.next().await {
+                match bytes {
+                    Ok(bytes) => {
+                        let decoded_frame: shared::Frame =
+                            bincode::deserialize(&bytes).expect("failed to decode frame");
+                        match decoded_frame.kind {
+                            shared::MessageKind::Command => {
+                                let command: shared::Command =
+                                    bincode::deserialize(&decoded_frame.body)
+                                        .expect("failed to decode command");
+                                match command {
+                                    shared::Command::Echo(s) => do_echo(s, &mut framed).await,
+                                    shared::Command::Ack => do_ack(),
+                                    shared::Command::Shell(cmd) => do_shell(cmd, &mut framed).await,
+                                    shared::Command::Shutdown => do_shutdown(&mut framed).await,
+                                }
+                            }
+                            shared::MessageKind::Heartbeat => {
+                                println!("Received heartbeat");
+                            }
+                            // Ignore data messages
+                            _ => return,
+                        }
+                    }
+                    Err(e) => {
+                        match e.kind() {
+                            tokio::io::ErrorKind::UnexpectedEof => {
+                                println!("Connection closed");
+                            }
+                            std::io::ErrorKind::ConnectionReset => {
+                                println!("Connection reset");
+                            }
+                            _ => {
+                                println!("Error: {}", e);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
         }
-
-        let plaintext =
-            common::decrypt_data(&buffer[..bytes_read], &key, nonce).expect("Failed to decrypt");
-        let command: common::Command =
-            bincode::deserialize(&plaintext).expect("error decoding command");
-
-        match command {
-            common::Command::Ls => {
-                let output = std::process::Command::new("ls")
-                    .output()
-                    .expect("failed to execute ls");
-
-                response_buffer
-                    .write_all(&output.stdout)
-                    .expect("failed to write");
-            }
-            common::Command::Cd { path } => {
-                let success = std::env::set_current_dir(&path).is_ok();
-                let result = if success { "success" } else { "failure" };
-                response_buffer
-                    .write_all(result.as_bytes())
-                    .expect("failed to write");
-            }
-            common::Command::Pwd => {
-                let path = std::env::current_dir()
-                    .expect("failed to get current directory")
-                    .display()
-                    .to_string();
-                response_buffer
-                    .write_all(path.as_bytes())
-                    .expect("failed to write");
-            }
-            common::Command::Echo { message } => {
-                response_buffer
-                    .write_all(message.as_bytes())
-                    .expect("failed to write");
-            }
-            common::Command::Quit => {
-                exit(-1);
-            }
-            common::Command::Exec { command } => {
-                let output = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(command)
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .output()
-                    .expect("Failed to execute command");
-
-                response_buffer
-                    .write_all(&output.stdout)
-                    .expect("failed to write");
-            }
-        }
-
-        let ciphertext =
-            common::encrypt_data(&response_buffer, &key, nonce).expect("Failed to encrypt");
-        stream.write_all(&ciphertext).expect("Failed to write");
-        stream.flush().expect("Failed to flush");
+        Err(_) => return,
     }
 }
 
-fn main() {
-    let listener = TcpListener::bind(SERVER_ADDR).expect("Failed to bind");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() != 2 {
+        eprintln!("Usage: {} <password>", args[0]);
+        std::process::exit(1);
+    }
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                std::thread::spawn(move || handle_client(stream));
-            }
-            Err(e) => {
-                println!("Error: {}", e);
-            }
-        }
+    let password = args[1].clone();
+    run_server(password).await?;
+
+    Ok(())
+}
+
+async fn run_server(password: String) -> Result<(), Box<dyn Error>> {
+    let listener = TcpListener::bind("127.0.0.1:12345").await?;
+
+    loop {
+        let (stream, addr) = listener.accept().await?;
+        println!("Accepted connection from {}", addr);
+        let derived_key = shared::derive_psk(password.as_str());
+        let builder = shared::create_noise_builder(&derived_key);
+        let keys = builder
+            .generate_keypair()
+            .expect("failed to generate keypair");
+        let responder = builder
+            .local_private_key(keys.private.as_slice())
+            .build_responder()?;
+
+        tokio::spawn(async move {
+            handle_connection(stream, responder).await;
+        });
     }
 }
