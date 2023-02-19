@@ -39,6 +39,16 @@ To run the client, use the following command and pass in the password as the fir
 
 Once connected to the server, the client can send shell commands to the server, and the server will execute the command and return the output to the client. The client can also exit the connection by sending the exit command.
 
+### Supported Commands
+
+Ghost Shell currently supports the following commands:
+
+- `echo`: Echoes back the input provided as an argument.
+- `exec`: Executes a command on the server and returns the output.
+- `exit`: Exits the remote shell and terminates the connection.
+
+Additional commands may be added in the future.
+
 ## Security
 
 Ghost Shell uses the Noise_NNpsk0_25519_AESGCM_SHA256 noise protocol to encrypt the communication channel between the client and the server. This protocol provides end-to-end security, protecting against eavesdropping, tampering, and forgery of messages.
