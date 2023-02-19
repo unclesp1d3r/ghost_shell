@@ -7,15 +7,7 @@ description = "A lightweight and fast remote shell that provides secure communic
 repository = "https://github.com/unclesp1d3r/ghost_shell"
 license = "MIT"
 categories = ["network-programming", "security"]
-keywords = [
-    "remote shell",
-    "encryption",
-    "Rust",
-    "end-to-end encryption",
-    "noise protocol",
-    "elliptic curve cryptography",
-    "security",
-]
+keywords = ["shell", "encryption", "noise", "security"]
 readme = "README.md"
 exclude = [
     "target/",
