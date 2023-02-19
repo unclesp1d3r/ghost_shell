@@ -3,12 +3,33 @@ name = "ghost_shell"
 version = "0.1.0"
 edition = "2021"
 authors = ["unclesp1d3r <unclesp1d3r@protonmail.com>"]
-description = "A simple shell over a secure channel"
+description = "A lightweight and fast remote shell that provides secure communication between a client and a server."
+repository = "https://github.com/unclesp1d3r/ghost_shell"
 license = "MIT"
-
+categories = ["network-programming", "security"]
+keywords = [
+    "remote shell",
+    "encryption",
+    "Rust",
+    "end-to-end encryption",
+    "noise protocol",
+    "elliptic curve cryptography",
+    "security",
+]
+readme = "README.md"
+exclude = [
+    "target/",
+    ".git/",
+    ".vscode/",
+    "Cargo.lock",
+    ".gitignore",
+    ".travis.yml",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+]
 
 [dependencies]
-anyhow = "1.0.69"
 bincode = "1.3.3"
 bytes = { version = "1.4.0", features = ["serde"] }
 console = "0.15.5"
