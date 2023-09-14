@@ -15,8 +15,12 @@ mod shared;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
+
+// TODO: Obviously, hard-coding address is dumb, but it's just for testing.
+const CONNECTION_ADDRESS: &str = "127.0.0.1:12345";
+
 async fn run_client(password: &str) -> io::Result<()> {
-    let stream = TcpStream::connect("127.0.0.1:12345").await?;
+    let stream = TcpStream::connect(CONNECTION_ADDRESS).await?;
 
     let derived_key = shared::derive_psk(password);
     let builder = shared::create_noise_builder(&derived_key);

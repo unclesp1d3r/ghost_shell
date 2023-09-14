@@ -8,20 +8,24 @@ use futures::{sink::SinkExt, StreamExt};
 use std::process::Command;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
+// TODO: Don't hard-code password.
 const PASSWORD: &str = "password";
+
+// TODO: Obviously, hard-coding address is dumb, but it's just for testing.
 const BIND_ADDRESS: &str = "127.0.0.1:12345";
 
-async fn do_echo(s: String, framed: &mut Framed<NoiseStream<TcpStream>, LengthDelimitedCodec>) {
+async fn do_echo(
+    s: String,
+    framed: &mut Framed<NoiseStream<TcpStream>, LengthDelimitedCodec>
+) {
     framed
-        .send(Bytes::from(
-            bincode::serialize(
+        .send(Bytes::from(bincode::serialize(
                 &(shared::Frame {
                     kind: shared::MessageKind::Data,
                     body: bincode::serialize(&(format!("echo: {}", s))).unwrap(),
                 }),
             )
-            .unwrap(),
-        ))
+            .unwrap(),))
         .await
         .expect("failed to send response");
 }

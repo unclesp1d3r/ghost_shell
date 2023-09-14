@@ -1,6 +1,6 @@
 [package]
 name = "ghost_shell"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["unclesp1d3r <unclesp1d3r@protonmail.com>"]
 description = "A lightweight and fast remote shell that provides secure communication between a client and a server."
@@ -23,16 +23,16 @@ exclude = [
 
 [dependencies]
 bincode = "1.3.3"
-bytes = { version = "1.4.0", features = ["serde"] }
-console = "0.15.5"
-dialoguer = { version = "0.10.3" }
-futures = "0.3.26"
+bytes = { version = "1.5.0", features = ["serde"] }
+console = "0.15"
+dialoguer = { version = "0.10.4" }
+futures = "0.3.28"
 ring = "0.16.20"
-serde = { version = "1.0.152", features = ["derive"] }
-snow = { version = "0.9.1", features = ["byteorder", "ring-accelerated"] }
+serde = { version = "1.0.188", features = ["derive"] }
+snow = { version = "0.9.3", features = ["byteorder", "ring-accelerated"] }
 snowstorm = { version = "0.4.0", features = ["ring-accelerated"] }
-tokio = { version = "1.25.0", features = ["full"] }
-tokio-util = { version = "0.7.7", features = ["codec", "futures-io", "full"] }
+tokio = { version = "1.32.0", features = ["full"] }
+tokio-util = { version = "0.7.8", features = ["codec", "futures-io", "full"] }
 
 
 [[bin]]

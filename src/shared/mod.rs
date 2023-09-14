@@ -30,12 +30,12 @@ pub struct ShellCommand {
     pub args: Vec<String>,
 }
 
-pub(crate) fn create_noise_builder<'a>(key: &'a [u8]) -> snow::Builder<'a> {
+pub fn create_noise_builder(key: &[u8]) -> snow::Builder {
     let params: NoiseParams = NOISE_PARAMS.parse().expect("invalid noise params");
     snowstorm::Builder::new(params).psk(0, &key)
 }
 
-pub(crate) fn derive_psk(password: &str) -> Vec<u8> {
+pub fn derive_psk(password: &str) -> Vec<u8> {
     let digest = ring::digest::digest(&ring::digest::SHA256, password.as_bytes());
     digest.as_ref()[..32].to_vec()
 }
